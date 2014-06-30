@@ -178,8 +178,8 @@ static int axi_hdmi_platform_probe(struct platform_device *pdev)
 	}
 
 	slave_node = of_parse_phandle(np, "encoder-slave", 0);
-	if (!slave_node)
-		return -EINVAL;
+	//if (!slave_node)
+	//	return -EINVAL;
 
 	private->is_rgb = of_property_read_bool(np, "adi,is-rgb");
 
@@ -190,13 +190,15 @@ static int axi_hdmi_platform_probe(struct platform_device *pdev)
 		of_property_read_bool(np, "adi,embedded-sync"))
 		private->version = AXI_HDMI_LEGACY_ES;
 	
-	private->encoder_slave = of_find_i2c_device_by_node(slave_node);
-	of_node_put(slave_node);
+        if (slave_node) {
+        	private->encoder_slave = of_find_i2c_device_by_node(slave_node);
+        	of_node_put(slave_node);
 
-	if (!private->encoder_slave || !private->encoder_slave->dev.driver) {
-		printk("%s:%s[%d]\n", __FILE__, __func__, __LINE__);
-		return -EPROBE_DEFER;
-	}
+	        if (!private->encoder_slave || !private->encoder_slave->dev.driver) {
+        		printk("%s:%s[%d]\n", __FILE__, __func__, __LINE__);
+        		return -EPROBE_DEFER;
+        	}
+        }
 
 	private->dma = dma_request_slave_channel(&pdev->dev, "video");
 	if (private->dma == NULL) {
