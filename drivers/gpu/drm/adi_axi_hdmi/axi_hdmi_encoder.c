@@ -238,7 +238,7 @@ static void axi_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct axi_hdmi_private *private = encoder->dev->dev_private;
 	struct drm_encoder_slave_funcs *sfuncs = get_slave_funcs(encoder);
 	struct adv7511_video_config config;
-	struct edid *edid;
+	struct edid *edid = NULL;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -250,7 +250,9 @@ static void axi_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 			writel(AXI_HDMI_RESET_ENABLE, private->base + AXI_HDMI_REG_RESET);
 		else
 			writel(AXI_HDMI_LEGACY_CTRL_ENABLE, private->base + AXI_HDMI_LEGACY_REG_CTRL);
+                #ifdef CONFIG_DRM_ENCODER_ADV7511
 		edid = adv7511_get_edid(encoder);
+                #endif
 		if (edid) {
 			config.hdmi_mode = drm_detect_hdmi_monitor(edid);
 			kfree(edid);
