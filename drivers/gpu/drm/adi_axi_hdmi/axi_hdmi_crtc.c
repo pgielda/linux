@@ -49,7 +49,6 @@ static int axi_hdmi_crtc_update(struct drm_crtc *crtc)
 		obj = drm_fb_cma_get_gem_obj(fb, 0);
 		if (!obj)
 			return -EINVAL;
-                printk(KERN_ERR "fb->bits_per_pixel = %d\n",  fb->bits_per_pixel);
 		axi_hdmi_crtc->dma_config.hsize = mode->hdisplay * fb->bits_per_pixel / 8;
 		axi_hdmi_crtc->dma_config.vsize = mode->vdisplay;
 		axi_hdmi_crtc->dma_config.stride = fb->pitches[0];

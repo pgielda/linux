@@ -143,6 +143,7 @@ static int axi_hdmi_debugfs_cp_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(axi_hdmi_cp_fops, axi_hdmi_debugfs_cp_get,
 	axi_hdmi_debugfs_cp_set, "0x%06llx\n");
 
+
 static const char * const axi_hdmi_mode_text[] = {
 	[AXI_HDMI_SOURCE_SEL_NONE] = "none",
 	[AXI_HDMI_SOURCE_SEL_NORMAL] = "normal",
@@ -159,7 +160,6 @@ static ssize_t axi_hdmi_read_mode(struct file *file, char __user *userbuf,
 	size_t len = 0;
 	char buf[50];
 	int i;
-printk(KERN_ERR "redmode!\n");
 	src = readl(private->base + AXI_HDMI_REG_SOURCE_SEL);
 
 	for (i = 0; i < ARRAY_SIZE(axi_hdmi_mode_text); i++) {
@@ -182,7 +182,6 @@ static ssize_t axi_hdmi_set_mode(struct file *file, const char __user *userbuf,
 	struct axi_hdmi_private *private = file->private_data;
 	char buf[20];
 	unsigned int i;
-printk(KERN_ERR "axi set mode\n");
 	count = min_t(size_t, count, sizeof(buf) - 1);
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
@@ -221,6 +220,7 @@ static void axi_hdmi_debugfs_init(struct axi_hdmi_encoder *encoder)
 
 	debugfs_create_regset32(dev_name(encoder->encoder.base.dev->dev), S_IRUGO, NULL, &encoder->regset);
 	debugfs_create_file("color_pattern", 0600, NULL, priv, &axi_hdmi_cp_fops);
+
 	debugfs_create_file("mode", 0600, NULL, priv, &axi_hdmi_mode_fops);
 }
 
@@ -233,6 +233,7 @@ static inline void axi_hdmi_debugfs_init(struct axi_hdmi_encoder *enc)
 #endif
 
 // 800x480
+
 static const char fake_edid_info[] = {
 0x00,0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x31,0xd8,0x00,0x00,
 0x00,0x00,0x00,0x00,0x05,0x16,0x01,0x03,0x6d,0x1b,0x10,0x78,
@@ -247,22 +248,18 @@ static const char fake_edid_info[] = {
 0x47,0x41,0x0a,0x20,0x20,0x20,0x00,0x52,
 };
 
-
-
-static int adv7511_get_edid_block(void *data, unsigned char *buf, int block,
+static int get_edid_block(void *data, unsigned char *buf, int block,
                                   int len)
 {
         if (len > 128)
                 return -EINVAL;
-
         memcpy(buf, fake_edid_info, len);
-        printk(KERN_ERR "faked some edid!\n");
         return 0;
 }
 
 static void axi_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
-        printk(KERN_ERR "Entered DPMS, mode=%d (DRM_MODE_DPMS_ON:=%d)\n",mode,DRM_MODE_DPMS_ON);
+        printk(KERN_ERR "Entered DPMS - turning %s\n", mode == DRM_MODE_DPMS_ON ? "on" : "off");
 	struct axi_hdmi_encoder *axi_hdmi_encoder = to_axi_hdmi_encoder(encoder);
 	struct drm_connector *connector = &axi_hdmi_encoder->connector;
 	struct axi_hdmi_private *private = encoder->dev->dev_private;
@@ -283,9 +280,10 @@ static void axi_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 		edid = adv7511_get_edid(encoder);
                 #else
 
-                edid = drm_do_get_edid(connector, adv7511_get_edid_block, encoder);
-drm_mode_connector_update_edid_property(connector, edid);
- drm_add_edid_modes(connector, edid);
+                // inject 800x480 edid
+                edid = drm_do_get_edid(connector, get_edid_block, encoder);
+                drm_mode_connector_update_edid_property(connector, edid);
+                drm_add_edid_modes(connector, edid);
 
                 #endif
 		if (edid) {
@@ -298,7 +296,7 @@ drm_mode_connector_update_edid_property(connector, edid);
 
 		config.avi_infoframe.scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 		if (private->is_rgb) {
-                                printk(KERN_ERR "forced rgb detected\n");
+                                printk(KERN_ERR "Forcing RGB mode.\n");
 				config.csc_enable = false;
 				config.avi_infoframe.colorspace = HDMI_COLORSPACE_RGB;
 		} else {
@@ -344,6 +342,20 @@ static bool axi_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static const struct drm_display_mode edt_etm0700g0dh6_mode = {
+       .clock = 33260,
+       .hdisplay = 800,
+       .hsync_start = 800 + 40,
+       .hsync_end = 800 + 40 + 128,
+       .htotal = 800 + 40 + 128 + 88,
+       .vdisplay = 480,
+       .vsync_start = 480 + 10,
+       .vsync_end = 480 + 10 + 2,
+       .vtotal = 480 + 10 + 2 + 33,
+       .vrefresh = 60,
+       .flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+};
+
 static void axi_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode, struct drm_display_mode *adjusted_mode)
 {
@@ -354,7 +366,9 @@ static void axi_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	unsigned int val;
 
 	if (sfuncs && sfuncs->mode_set)
-		sfuncs->mode_set(encoder, mode, adjusted_mode);
+	sfuncs->mode_set(encoder, mode, adjusted_mode);
+
+        memcpy((void*)mode,(void*)&edt_etm0700g0dh6_mode, sizeof(struct drm_display_mode));
 
 	h_de_min = mode->htotal - mode->hsync_start;
 	h_de_max = h_de_min + mode->hdisplay;
@@ -397,6 +411,7 @@ static void axi_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 		break;
 	}
 
+        printk(KERN_ERR "clock = %d\n", mode->clock);
 	clk_set_rate(private->hdmi_clock, mode->clock * 1000);
 }
 
@@ -476,9 +491,10 @@ struct drm_encoder *axi_hdmi_encoder_create(struct drm_device *dev)
 
 	if (priv->version == AXI_HDMI) {
 		writel(AXI_HDMI_SOURCE_SEL_NORMAL, priv->base + AXI_HDMI_REG_SOURCE_SEL);
-                printk(KERN_ERR "forced is_rgb = %d\n", priv->is_rgb);
-		if (priv->is_rgb)
-				writel(AXI_HDMI_CTRL_CSC_BYPASS, priv->base + AXI_HDMI_REG_CTRL);
+                if (priv->is_rgb) {
+                        printk(KERN_ERR "RGB - forcing CSC_BYPASS\n");
+			writel(AXI_HDMI_CTRL_CSC_BYPASS, priv->base + AXI_HDMI_REG_CTRL);
+                }
 	}
 	return encoder;
 }
@@ -489,7 +505,7 @@ static int axi_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct drm_encoder_slave_funcs *sfuncs = get_slave_funcs(encoder);
 	int count = 0;
 #ifndef CONFIG_DRM_ENCODER_ADV7511
-printk(KERN_ERR "Get modes, forcing 1 mode, issuing dpms\n"); // TODO: do we have to do that ?
+        printk(KERN_ERR "Get modes, forcing 1 mode, issuing dpms\n"); // TODO: do we have to do that ?
         axi_hdmi_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
         return 1;
 #endif
