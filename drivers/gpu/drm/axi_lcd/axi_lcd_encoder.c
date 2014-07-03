@@ -248,7 +248,7 @@ static void axi_lcd_encoder_dpms(struct drm_encoder *encoder, int mode)
 			clk_prepare_enable(private->lcd_clock);
 			private->clk_enabled = true;
 		}
-	        writel(axi_lcd_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);
+	        writel(AXI_LCD_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);
 
                 // inject 800x480 edid
                 edid = drm_do_get_edid(connector, get_edid_block, encoder);

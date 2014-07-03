@@ -145,7 +145,6 @@ static struct drm_driver axi_lcd_driver = {
 static const struct of_device_id lcd_encoder_of_match[] = {
 	{
 		.compatible = "adi,axi-lcd-1.00.a",
-		.data = (const void *)axi_lcd
 	}, 
 	{},
 };
@@ -156,7 +155,6 @@ static int axi_lcd_platform_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	struct device_node *np = pdev->dev.of_node;
 	struct axi_lcd_private *private;
-	struct device_node *slave_node;
 	struct resource *res;
 
 	private = devm_kzalloc(&pdev->dev, sizeof(*private), GFP_KERNEL);
