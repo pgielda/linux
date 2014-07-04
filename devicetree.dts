@@ -168,17 +168,6 @@
 			xlnx,eth-mode = <0x1>;
 			xlnx,has-mdio = <0x1>;
 			xlnx,ptp-enet-clock = <0x69f6bcb>;
-/*			phy-handle = <0x3>;
-			phy-mode = "rgmii-id";
-
-			phy@0 {
-				compatible = "marvell,88e1510";
-				device_type = "ethernet-phy";
-				reg = <0x0>;
-				marvell,reg-init = <0x3 0x10 0xff00 0x1e 0x3 0x11 0xfff0 0xa>;
-				linux,phandle = <0x3>;
-				phandle = <0x3>;
-			};*/
 		};
 
 		gpio@e000a000 {
@@ -255,24 +244,6 @@
 			i2c-clk = <0x186a0>;
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
-
-/*			adv7511@39 {
-				compatible = "adi,adv7511";
-				reg = <0x39>;
-				adi,input-style = <0x2>;
-				adi,input-id = <0x1>;
-				adi,input-color-depth = <0x0>;
-				adi,sync-pulse = <0x3>;
-				adi,bit-justification = <0x0>;
-				adi,up-conversion = <0x0>;
-				adi,timing-generation-sequence = <0x0>;
-				adi,vsync-polarity = <0x2>;
-				adi,hsync-polarity = <0x2>;
-				adi,tdms-clock-inversion;
-				adi,clock-delay = <0x3>;
-				linux,phandle = <0x5>;
-				phandle = <0x5>;
-			};*/
 		};
 	};
 
@@ -282,8 +253,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyPS0,115200 root=/dev/ram rw earlyprintk rootwait devtmpfs.mount=1 ";
- /* video=HDMI-A-1:800x480-16@60"; */
+		bootargs = "console=ttyPS0,115200 root=/dev/sda1 rw earlyprintk rootwait devtmpfs.mount=1";
 		linux,stdout-path = "/amba@0/uart@E0001000";
 	};
 
@@ -324,13 +294,12 @@
 		};
 
 		axi_hdmi@70e00000 {
-			compatible = "adi,axi-hdmi-tx-1.00.a";
+			compatible = "adi,axi-lcd-1.00.a";
 			reg = <0x70e00000 0x10000>;
-			/* encoder-slave = <0x5>; */
 			dmas = <0x6 0x0>;
 			dma-names = "video";
 			clocks = <0x7>;
-                        adi,is-rgb;
+			adi,is-rgb;
 		};
 	};
 };
