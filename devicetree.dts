@@ -168,6 +168,16 @@
 			xlnx,eth-mode = <0x1>;
 			xlnx,has-mdio = <0x1>;
 			xlnx,ptp-enet-clock = <0x69f6bcb>;
+			phy-handle = <0x03>;
+			phy-mode = "rgmii-id";
+			phy@3 {
+
+				compatible = "micrel,ksz9031";
+				device_type = "ethernet-phy";
+				reg = <0x3>;
+				linux,phandle = <0x3>;
+				phandle = <0x3>;
+			};
 		};
 
 		gpio@e000a000 {
@@ -244,6 +254,13 @@
 			i2c-clk = <0x186a0>;
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
+			touch@38 {
+
+				compatible = "edt-ft5x06";
+				reg = <0x38>;
+				interrupt-parent = <0x1>;
+				interrupts = <0x0 0x3a 0x04>;
+			};
 		};
 	};
 
