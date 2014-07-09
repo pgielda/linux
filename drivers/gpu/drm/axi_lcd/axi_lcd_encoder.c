@@ -36,6 +36,12 @@
 #define AXI_LCD_REG_SOURCE_SEL		0x048
 #define AXI_LCD_REG_COLORPATTERN	0x04c
 #define AXI_LCD_REG_STATUS		0x05c
+
+#define AXI_LCD_REG_PWM_FREQ            0x070
+#define AXI_LCD_REG_PWM_FILL            0x074
+
+#define AXI_LCD_REG_PWM_FREQ_20KHZ      5000
+
 #define AXI_LCD_REG_VDMA_STATUS	0x060
 #define AXI_LCD_REG_TPM_STATUS		0x064
 #define AXI_LCD_REG_HTIMING1		0x400
@@ -408,22 +414,20 @@ static struct drm_encoder_funcs axi_lcd_encoder_funcs = {
 
 static int axi_lcd_backlight_update_status(struct backlight_device *bd)
 {
-/*        struct radeon_backlight_privdata *pdata = bl_get_data(bd);
-        struct radeon_encoder *radeon_encoder = pdata->encoder;
+        struct axi_lcd_private *priv = bl_get_data(bd);
 
-        atombios_set_backlight_level(radeon_encoder, radeon_atom_bl_level(bd));*/
         printk(KERN_ERR "set something, update status, whatever, bd->props->brightness = %d blank=%d\n", bd->props.brightness, bd->props.fb_blank);
+        if (!bd->props.fb_blank) {
+                writel(AXI_LCD_REG_PWM_FREQ_20KHZ, priv->base + AXI_LCD_REG_PWM_FREQ);
+                writel((bd->props.brightness  * AXI_LCD_REG_PWM_FREQ_20KHZ) / 100, priv->base + AXI_LCD_REG_PWM_FILL);
+        }
         return 0;
 }
 
 static int axi_lcd_backlight_get_brightness(struct backlight_device *bd)
 {
-/*        struct radeon_backlight_privdata *pdata = bl_get_data(bd);
-        struct radeon_encoder *radeon_encoder = pdata->encoder;
-        struct drm_device *dev = radeon_encoder->base.dev;
-        struct radeon_device *rdev = dev->dev_private;*/
         printk(KERN_ERR "get brightness !!!\n");
-        return 1;
+        return bd->props.fb_blank ? 0 : bd->props.brightness;
 }
 
 static const struct backlight_ops axi_lcd_backlight_ops = {
@@ -460,7 +464,7 @@ struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
         props.max_brightness = 100;
         props.type = BACKLIGHT_RAW;
 
-        backlight_device_register("axi_lcd_backlight", connector->kdev, NULL, &axi_lcd_backlight_ops, &props);
+        backlight_device_register("axi_lcd_backlight", connector->kdev, priv, &axi_lcd_backlight_ops, &props);
 	
         axi_lcd_debugfs_init(axi_lcd_encoder);
 
