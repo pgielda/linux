@@ -330,11 +330,15 @@ static void axi_lcd_encoder_mode_set(struct drm_encoder *encoder,
 	unsigned int h_de_min, h_de_max;
 	unsigned int v_de_min, v_de_max;
 	unsigned int val;
+//        char *fourcc;
 
 	if (sfuncs && sfuncs->mode_set)
 	sfuncs->mode_set(encoder, mode, adjusted_mode);
 
         memcpy((void*)mode,(void*)&edt_etm0700g0dh6_mode, sizeof(struct drm_display_mode));
+
+//        fourcc = &encoder->crtc->fb->pixel_format;
+//        printk(KERN_ERR "pixel_format = %X [%c%c%c%c]\n", encoder->crtc->fb->pixel_format, fourcc[0],fourcc[1],fourcc[2],fourcc[3]);
 
 	h_de_min = mode->htotal - mode->hsync_start;
 	h_de_max = h_de_min + mode->hdisplay;
@@ -401,6 +405,32 @@ static struct drm_encoder_funcs axi_lcd_encoder_funcs = {
 	.destroy = axi_lcd_encoder_destroy,
 };
 
+
+static int axi_lcd_backlight_update_status(struct backlight_device *bd)
+{
+/*        struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+        struct radeon_encoder *radeon_encoder = pdata->encoder;
+
+        atombios_set_backlight_level(radeon_encoder, radeon_atom_bl_level(bd));*/
+        printk(KERN_ERR "set something, update status, whatever, bd->props->brightness = %d blank=%d\n", bd->props.brightness, bd->props.fb_blank);
+        return 0;
+}
+
+static int axi_lcd_backlight_get_brightness(struct backlight_device *bd)
+{
+/*        struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+        struct radeon_encoder *radeon_encoder = pdata->encoder;
+        struct drm_device *dev = radeon_encoder->base.dev;
+        struct radeon_device *rdev = dev->dev_private;*/
+        printk(KERN_ERR "get brightness !!!\n");
+        return 1;
+}
+
+static const struct backlight_ops axi_lcd_backlight_ops = {
+         .get_brightness = axi_lcd_backlight_get_brightness,
+         .update_status  = axi_lcd_backlight_update_status,
+};
+
 struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
@@ -408,6 +438,7 @@ struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
 	struct axi_lcd_encoder *axi_lcd_encoder;
 	struct drm_i2c_encoder_driver *encoder_drv;
 	struct axi_lcd_private *priv = dev->dev_private;
+        struct backlight_properties props;
 
 	axi_lcd_encoder = kzalloc(sizeof(*axi_lcd_encoder), GFP_KERNEL);
 	if (!axi_lcd_encoder) {
@@ -424,6 +455,12 @@ struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
 	connector = &axi_lcd_encoder->connector;
 
 	axi_lcd_connector_init(dev, connector, encoder);
+
+        memset(&props, 0, sizeof(props));
+        props.max_brightness = 100;
+        props.type = BACKLIGHT_RAW;
+
+        backlight_device_register("axi_lcd_backlight", connector->kdev, NULL, &axi_lcd_backlight_ops, &props);
 	
         axi_lcd_debugfs_init(axi_lcd_encoder);
 
