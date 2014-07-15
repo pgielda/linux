@@ -55,6 +55,8 @@
 
 #define AXI_LCD_CTRL_FULL_RANGE	BIT(1)
 #define AXI_LCD_CTRL_CSC_BYPASS	BIT(0)
+#define AXI_LCD_CTRL_RGB (AXI_LCD_CTRL_CSC_BYPASS)
+#define AXI_LCD_CTRL_BGR (AXI_LCD_CTRL_CSC_BYPASS | BIT(2))
 
 #define AXI_LCD_SOURCE_SEL_COLORPATTERN	0x3
 #define AXI_LCD_SOURCE_SEL_TESTPATTERN		0x2
@@ -472,8 +474,7 @@ struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
         axi_lcd_debugfs_init(axi_lcd_encoder);
 
 	writel(AXI_LCD_SOURCE_SEL_NORMAL, priv->base + AXI_LCD_REG_SOURCE_SEL);
-        writel(AXI_LCD_CTRL_CSC_BYPASS, priv->base + AXI_LCD_REG_CTRL); // CSC BYPASS
-        writel(priv->is_rgb ? 0 : (1 << 1), priv->base + AXI_LCD_REG_RESET); // SET RGB or BGR
+        writel(priv->is_rgb ? AXI_LCD_CTRL_RGB : AXI_LCD_CTRL_BGR, priv->base + AXI_LCD_REG_CTRL); // RGB / BGR
 	return encoder;
 }
 
