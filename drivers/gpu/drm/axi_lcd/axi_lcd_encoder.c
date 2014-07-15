@@ -419,7 +419,10 @@ static int axi_lcd_backlight_update_status(struct backlight_device *bd)
         printk(KERN_ERR "set something, update status, whatever, bd->props->brightness = %d blank=%d\n", bd->props.brightness, bd->props.fb_blank);
         if (!bd->props.fb_blank) {
                 writel(AXI_LCD_REG_PWM_FREQ_20KHZ, priv->base + AXI_LCD_REG_PWM_FREQ);
-                writel((bd->props.brightness  * AXI_LCD_REG_PWM_FREQ_20KHZ) / 100, priv->base + AXI_LCD_REG_PWM_FILL);
+                unsigned int brightness = 20 + (bd->props.brightness * 0.8); // normalize brightness to have minimum 20%
+                writel((brightness  * AXI_LCD_REG_PWM_FREQ_20KHZ) / 100, priv->base + AXI_LCD_REG_PWM_FILL);
+        } else {
+                 writel(0, priv->base + AXI_LCD_REG_PWM_FILL);
         }
         return 0;
 }
