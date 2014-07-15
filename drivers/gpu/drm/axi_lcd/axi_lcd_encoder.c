@@ -469,10 +469,8 @@ struct drm_encoder *axi_lcd_encoder_create(struct drm_device *dev)
         axi_lcd_debugfs_init(axi_lcd_encoder);
 
 	writel(AXI_LCD_SOURCE_SEL_NORMAL, priv->base + AXI_LCD_REG_SOURCE_SEL);
-        if (priv->is_rgb) {
-                        printk(KERN_ERR "RGB - forcing CSC_BYPASS\n");
-			writel(AXI_LCD_CTRL_CSC_BYPASS, priv->base + AXI_LCD_REG_CTRL);
-        }
+        writel(AXI_LCD_CTRL_CSC_BYPASS, priv->base + AXI_LCD_REG_CTRL); // CSC BYPASS
+        writel(priv->is_rgb ? 0 : (1 << 1), priv->base + AXI_LCD_REG_RESET); // SET RGB or BGR
 	return encoder;
 }
 
