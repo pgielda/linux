@@ -269,12 +269,12 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	bytes_per_pixel = DIV_ROUND_UP(sizes->surface_bpp, 8);
 
 	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
+	mode_cmd.height = sizes->fb_height;
 	mode_cmd.pitches[0] = sizes->surface_width * bytes_per_pixel;
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 		sizes->surface_depth);
 
-	size = mode_cmd.pitches[0] * mode_cmd.height;
+	size = mode_cmd.pitches[0] * sizes->surface_height;
 	obj = drm_gem_cma_create(dev, size);
 	if (IS_ERR(obj))
 		return -ENOMEM;

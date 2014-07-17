@@ -20,6 +20,7 @@
 #include <drm/drm.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include "axi_lcd_drv.h"
 #include "axi_lcd_crtc.h"
@@ -53,10 +54,40 @@ static void axi_lcd_mode_config_init(struct drm_device *dev)
 	dev->mode_config.funcs = &axi_lcd_mode_config_funcs;
 }
 
+#define DOUBLE_BUFFERING
+
+int axi_lcd_fb_helper_check_var(struct fb_var_screeninfo *var,
+                            struct fb_info *info)
+{
+     struct drm_fb_helper *fb_helper = info->par;
+       struct drm_framebuffer *fb = fb_helper->fb;
+        int depth;
+        int result;
+        if (var->pixclock != 0)
+                return -EINVAL;
+#ifdef DOUBLE_BUFFERING
+        if (var->bits_per_pixel > fb->bits_per_pixel ||
+            var->xres > fb->width || var->yres > fb->height ||
+            var->xres_virtual > fb->width || var->yres_virtual > fb->height) {
+
+        if (var->yres_virtual == (fb->height * 2)) {
+                var->yres_virtual = fb->height;
+                result = drm_fb_helper_check_var(var, info);
+                var->yres_virtual = 2 * fb->height;
+                return result;
+        }
+        }
+#endif 
+ return drm_fb_helper_check_var(var, info);
+}
+
+
 static int axi_lcd_load(struct drm_device *dev, unsigned long flags)
 {
 	struct axi_lcd_private *private = dev_get_drvdata(dev->dev);
 	struct drm_encoder *encoder;
+	struct drm_fb_helper *helper;
+
 	int ret;
 
 	private->drm_dev = dev;
@@ -89,6 +120,8 @@ static int axi_lcd_load(struct drm_device *dev, unsigned long flags)
 		goto err_crtc;
 	}
 
+	helper = private->fbdev;
+        helper->fbdev->fbops->fb_check_var = axi_lcd_fb_helper_check_var;
 	return 0;
 
 err_crtc:

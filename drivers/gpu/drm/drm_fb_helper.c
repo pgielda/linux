@@ -959,6 +959,8 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		sizes.fb_height = sizes.surface_height = 768;
 	}
 
+	sizes.surface_height = 2 * sizes.surface_height;
+
 	/* push down into drivers */
 	ret = (*fb_helper->funcs->fb_probe)(fb_helper, &sizes);
 	if (ret < 0)
