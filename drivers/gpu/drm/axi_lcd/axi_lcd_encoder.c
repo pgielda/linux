@@ -252,11 +252,11 @@ static void axi_lcd_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct edid *edid = NULL;
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		if (!private->clk_enabled) {
+/*		if (!private->clk_enabled) {
 			clk_prepare_enable(private->lcd_clock);
 			private->clk_enabled = true;
 		}
-	        writel(AXI_LCD_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);
+	        writel(AXI_LCD_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);*/ // TODO: pierwsze
 
                 // inject 800x480 edid
                 edid = drm_do_get_edid(connector, get_edid_block, encoder);
@@ -294,16 +294,13 @@ static void axi_lcd_encoder_dpms(struct drm_encoder *encoder, int mode)
 */
 		break;
 	default:
-		writel(0, private->base + AXI_LCD_REG_RESET);
+/*		writel(0, private->base + AXI_LCD_REG_RESET);
 		if (private->clk_enabled) {
 			clk_disable_unprepare(private->lcd_clock);
 			private->clk_enabled = false;
-		}
+		}*/ // TODO: drugie
 		break;
 	}
-
-	if (sfuncs && sfuncs->dpms)
-		sfuncs->dpms(encoder, mode);
 }
 
 static bool axi_lcd_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -314,6 +311,20 @@ static bool axi_lcd_encoder_mode_fixup(struct drm_encoder *encoder,
 		return sfuncs->mode_fixup(encoder, mode, adjusted_mode);
 
 	return true;
+}
+
+void do_reset(  struct axi_lcd_private *private) {
+       writel(0, private->base + AXI_LCD_REG_RESET);
+       if (private->clk_enabled) {
+                       clk_disable_unprepare(private->lcd_clock);
+                       private->clk_enabled = false;
+       }
+       msleep(200);
+       clk_prepare_enable(private->lcd_clock);
+       private->clk_enabled = true;
+
+       writel(AXI_LCD_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);
+       
 }
 
 static const struct drm_display_mode edt_etm0700g0dh6_mode = {
@@ -330,23 +341,23 @@ static const struct drm_display_mode edt_etm0700g0dh6_mode = {
        .flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
+void set_timings(struct drm_display_mode *mode, struct axi_lcd_private *private);
+
 static void axi_lcd_encoder_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode, struct drm_display_mode *adjusted_mode)
 {
-	struct drm_encoder_slave_funcs *sfuncs = get_slave_funcs(encoder);
 	struct axi_lcd_private *private = encoder->dev->dev_private;
-	unsigned int h_de_min, h_de_max;
-	unsigned int v_de_min, v_de_max;
-	unsigned int val;
-//        char *fourcc;
-
-	if (sfuncs && sfuncs->mode_set)
-	sfuncs->mode_set(encoder, mode, adjusted_mode);
 
         memcpy((void*)mode,(void*)&edt_etm0700g0dh6_mode, sizeof(struct drm_display_mode));
 
-//        fourcc = &encoder->crtc->fb->pixel_format;
-//        printk(KERN_ERR "pixel_format = %X [%c%c%c%c]\n", encoder->crtc->fb->pixel_format, fourcc[0],fourcc[1],fourcc[2],fourcc[3]);
+	set_timings(&edt_etm0700g0dh6_mode, private);
+}
+
+void set_timings(struct drm_display_mode *mode, struct axi_lcd_private *private) {
+         unsigned int h_de_min, h_de_max;
+         unsigned int v_de_min, v_de_max;
+         unsigned int val;
+
 
 	h_de_min = mode->htotal - mode->hsync_start;
 	h_de_max = h_de_min + mode->hdisplay;
@@ -369,6 +380,7 @@ static void axi_lcd_encoder_mode_set(struct drm_encoder *encoder,
         
         printk(KERN_ERR "clock = %d\n", mode->clock);
 	clk_set_rate(private->lcd_clock, mode->clock * 1000);
+	do_reset(private);
 }
 
 static void axi_lcd_encoder_commit(struct drm_encoder *encoder)
