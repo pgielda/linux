@@ -209,11 +209,6 @@ static int axi_lcd_platform_probe(struct platform_device *pdev)
 
 	id = of_match_node(lcd_encoder_of_match, np);
 
-	private->dma = dma_request_slave_channel(&pdev->dev, "video");
-	if (private->dma == NULL) {
-		printk("%s:%s[%d]\n", __FILE__, __func__, __LINE__);
-		return -EPROBE_DEFER;
-	}
 
 	platform_set_drvdata(pdev, private);
 
@@ -225,7 +220,6 @@ static int axi_lcd_platform_remove(struct platform_device *pdev)
 	struct axi_lcd_private *private = platform_get_drvdata(pdev);
 
 	drm_put_dev(private->drm_dev);
-	dma_release_channel(private->dma);
 	return 0;
 }
 

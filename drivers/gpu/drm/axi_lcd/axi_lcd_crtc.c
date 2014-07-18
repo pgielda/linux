@@ -8,8 +8,8 @@
  */
 
 #include <linux/slab.h>
-#include <linux/dmaengine.h>
-#include <linux/amba/xilinx_dma.h>
+#include <linux/delay.h>
+
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -21,8 +21,6 @@
 
 struct axi_lcd_crtc {
 	struct drm_crtc drm_crtc;
-	struct dma_chan *dma;
-	struct xilinx_dma_config dma_config;
 	int mode;
 };
 
@@ -31,46 +29,86 @@ static inline struct axi_lcd_crtc *to_axi_lcd_crtc(struct drm_crtc *crtc)
 	return container_of(crtc, struct axi_lcd_crtc, drm_crtc);
 }
 
+#define DMA_BASE		0x10000
+#define DMA_CONTROL 		(DMA_BASE + 0)
+#define DMA_STATUS 		(DMA_BASE + 0x04)
+#define DMA_PARK_POINTER 	(DMA_BASE + 0x28)
+#define DMA_VSIZE 		(DMA_BASE + 0x50)
+#define DMA_HSIZE 		(DMA_BASE + 0x54)
+#define DMA_STRIDE 		(DMA_BASE + 0x58)
+#define DMA_BUF_ADDR0 		(DMA_BASE + 0x5C)
+#define DMA_BUF_ADDR1 		(DMA_BASE + 0x60)
+
+int first = 0;
+
 static int axi_lcd_crtc_update(struct drm_crtc *crtc)
 {
 	struct axi_lcd_crtc *axi_lcd_crtc = to_axi_lcd_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->mode;
 	struct drm_framebuffer *fb = crtc->fb;
-	struct dma_async_tx_descriptor *desc;
 	struct drm_gem_cma_object *obj;
-	size_t offset;
+	unsigned int reg;
+	unsigned int bufno;
+	unsigned int bufaddr[2];
+
+	struct axi_lcd_private *private  = (struct axi_lcd_private *) crtc->dev->dev_private;
 
 	if (!mode || !fb)
 		return -EINVAL;
-
-	dmaengine_terminate_all(axi_lcd_crtc->dma);
 
 	if (axi_lcd_crtc->mode == DRM_MODE_DPMS_ON) {
 		obj = drm_fb_cma_get_gem_obj(fb, 0);
 		if (!obj)
 			return -EINVAL;
-		axi_lcd_crtc->dma_config.hsize = mode->hdisplay * fb->bits_per_pixel / 8;
-		axi_lcd_crtc->dma_config.vsize = mode->vdisplay;
-		axi_lcd_crtc->dma_config.stride = fb->pitches[0];
 
-		dmaengine_device_control(axi_lcd_crtc->dma, DMA_SLAVE_CONFIG,
-			(unsigned long)&axi_lcd_crtc->dma_config);
+		if (first < 2) {
+			first++;
 
-		offset = crtc->x * fb->bits_per_pixel / 8 + crtc->y * fb->pitches[0];
+			bufaddr[0] = obj->paddr;
+			bufaddr[1] = obj->paddr + (crtc->x * fb->bits_per_pixel / 8 + mode->vdisplay * fb->pitches[0]);
 
-		desc = dmaengine_prep_slave_single(axi_lcd_crtc->dma,
-					obj->paddr + offset,
-					mode->vdisplay * fb->pitches[0],
-					DMA_MEM_TO_DEV, 0);
-		if (!desc) {
-			pr_err("Failed to prepare DMA descriptor\n");
-			return -ENOMEM;
-		} else {
-			dmaengine_submit(desc);
-			dma_async_issue_pending(axi_lcd_crtc->dma);
+			//halt dma (just in case)
+			reg = readl(private->base + DMA_CONTROL);
+			reg &= ~(0x01);
+			//disable circular mode
+			reg &= ~(0x02);
+			writel(reg, private->base + DMA_CONTROL);
+
+			//set first buffer as the one which is displayed
+			reg = readl(private->base + DMA_PARK_POINTER);
+			reg &= ~(0x1f);
+			reg |= 0x01;
+			writel(reg, private->base + DMA_PARK_POINTER);
+
+			//set the buffer pointers
+			writel(bufaddr[0], private->base + DMA_BUF_ADDR0);
+			writel(bufaddr[1], private->base + DMA_BUF_ADDR1);
+
+			//start dma
+			reg = readl(private->base + DMA_CONTROL);
+			reg |= 0x01;
+			writel(reg, private->base + DMA_CONTROL);
+
+			writel(fb->pitches[0], private->base + DMA_STRIDE);
+			writel(mode->hdisplay * fb->bits_per_pixel / 8, private->base + DMA_HSIZE);
+			//set vsize (this starts the transfer)
+			writel(mode->vdisplay, private->base + DMA_VSIZE);
+			return 0;
+		}
+
+		bufno = (crtc->y == 0) ? 0 : 1;
+
+		reg = readl(private->base + DMA_PARK_POINTER);
+                reg &= ~(0x1f);
+                reg |= bufno;
+		writel(reg, private->base + DMA_PARK_POINTER);
+		//wait till the frame is being operated
+		reg = readl(private->base + DMA_PARK_POINTER);
+		while( ((reg & 0x001f0000) >> 16) != bufno) {
+			usleep_range(1,2);
+			reg = readl(private->base + DMA_PARK_POINTER);
 		}
 	}
-
 	return 0;
 }
 
@@ -80,6 +118,7 @@ static void axi_lcd_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	if (axi_lcd_crtc->mode != mode) {
 		axi_lcd_crtc->mode = mode;
+		//printk(KERN_ERR"%s: calling crtc_update \n", __func__);
 		axi_lcd_crtc_update(crtc);
 	}
 }
@@ -87,8 +126,7 @@ static void axi_lcd_crtc_dpms(struct drm_crtc *crtc, int mode)
 static void axi_lcd_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct axi_lcd_crtc *axi_lcd_crtc = to_axi_lcd_crtc(crtc);
-
-	dmaengine_terminate_all(axi_lcd_crtc->dma);
+	//printk(KERN_ERR"%s: calling crtc_update \n", __func__);
 }
 
 static void axi_lcd_crtc_commit(struct drm_crtc *crtc)
@@ -96,6 +134,7 @@ static void axi_lcd_crtc_commit(struct drm_crtc *crtc)
 	struct axi_lcd_crtc *axi_lcd_crtc = to_axi_lcd_crtc(crtc);
 
 	axi_lcd_crtc->mode = DRM_MODE_DPMS_ON;
+	//printk(KERN_ERR"%s: calling crtc_update \n", __func__);
 	axi_lcd_crtc_update(crtc);
 }
 
@@ -117,6 +156,7 @@ static int axi_lcd_crtc_mode_set(struct drm_crtc *crtc,
 static int axi_lcd_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_framebuffer *old_fb)
 {
+	//printk(KERN_ERR"%s: calling crtc_update x= %d, y=%d \n", __func__, x, y);
 	return axi_lcd_crtc_update(crtc);
 }
 
@@ -160,8 +200,6 @@ struct drm_crtc *axi_lcd_crtc_create(struct drm_device *dev)
 	}
 
 	crtc = &axi_lcd_crtc->drm_crtc;
-
-	axi_lcd_crtc->dma = p->dma;
 
 	drm_crtc_init(dev, crtc, &axi_lcd_crtc_funcs);
 	drm_crtc_helper_add(crtc, &axi_lcd_crtc_helper_funcs);

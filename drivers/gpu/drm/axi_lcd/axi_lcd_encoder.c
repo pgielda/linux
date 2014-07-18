@@ -252,53 +252,17 @@ static void axi_lcd_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct edid *edid = NULL;
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-/*		if (!private->clk_enabled) {
-			clk_prepare_enable(private->lcd_clock);
-			private->clk_enabled = true;
-		}
-	        writel(AXI_LCD_RESET_ENABLE, private->base + AXI_LCD_REG_RESET);*/ // TODO: pierwsze
 
                 // inject 800x480 edid
                 edid = drm_do_get_edid(connector, get_edid_block, encoder);
                 drm_mode_connector_update_edid_property(connector, edid);
                 drm_add_edid_modes(connector, edid);
 
-		if (edid) {
-//	config.hdmi_mode = drm_detect_hdmi_monitor(edid);
+		if (edid) 
 			kfree(edid);
-		} else {
-//	config.hdmi_mode = false;
-		}
-/*hdmi_avi_infoframe_init(&config.avi_infoframe);
 
-		config.avi_infoframe.scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
-		if (private->is_rgb) {
-                                printk(KERN_ERR "Forcing RGB mode.\n");
-				config.csc_enable = false;
-				config.avi_infoframe.colorspace = HDMI_COLORSPACE_RGB;
-		} else {
-			config.csc_scaling_factor = ADV7511_CSC_SCALING_4;
-			config.csc_coefficents = adv7511_csc_ycbcr_to_rgb;
-
-			if ((connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB422) &&
-				config.hdmi_mode) {
-				config.csc_enable = false;
-				config.avi_infoframe.colorspace = HDMI_COLORSPACE_YUV422;
-			} else {
-				config.csc_enable = true;
-				config.avi_infoframe.colorspace = HDMI_COLORSPACE_RGB;
-			}
-		}
-                if (sfuncs) 
-        		sfuncs->set_config(encoder, &config);
-*/
 		break;
 	default:
-/*		writel(0, private->base + AXI_LCD_REG_RESET);
-		if (private->clk_enabled) {
-			clk_disable_unprepare(private->lcd_clock);
-			private->clk_enabled = false;
-		}*/ // TODO: drugie
 		break;
 	}
 }
