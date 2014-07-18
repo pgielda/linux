@@ -77,7 +77,7 @@ static int axi_lcd_crtc_update(struct drm_crtc *crtc)
 			//set first buffer as the one which is displayed
 			reg = readl(private->base + DMA_PARK_POINTER);
 			reg &= ~(0x1f);
-			reg |= 0x01;
+			reg |= 0x00; // buffer0
 			writel(reg, private->base + DMA_PARK_POINTER);
 
 			//set the buffer pointers
