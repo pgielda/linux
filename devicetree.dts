@@ -270,7 +270,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyPS0,115200 root=/dev/sda1 rw earlyprintk rootwait devtmpfs.mount=1";
+		bootargs = "console=ttyPS0,115200 root=/dev/sda1 rw earlyprintk rootwait devtmpfs.mount=1 video=HDMI-A-1:800x480-32@60";
 		linux,stdout-path = "/amba@0/uart@E0001000";
 	};
 
@@ -279,27 +279,6 @@
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		ranges;
-
-		axivdma@43000000 {
-			compatible = "xlnx,axi-vdma";
-			#address-cells = <0x1>;
-			#size-cells = <0x1>;
-			#dma-cells = <0x1>;
-			#dma-channels = <0x1>;
-			reg = <0x43000000 0x1000>;
-			xlnx,include-sg = <0x0>;
-			xlnx,num-fstores = <0x3>;
-			linux,phandle = <0x6>;
-			phandle = <0x6>;
-
-			dma-channel@43000000 {
-				compatible = "xlnx,axi-vdma-mm2s-channel";
-				interrupts = <0x0 0x3b 0x4>;
-				xlnx,datawidth = <0x40>;
-				xlnx,genlock-mode = <0x0>;
-				xlnx,include-dre = <0x0>;
-			};
-		};
 
 		axi-clkgen@79000000 {
 			compatible = "adi,axi-clkgen-2.00.a";
@@ -312,7 +291,7 @@
 
 		axi_hdmi@70e00000 {
 			compatible = "adi,axi-lcd-1.00.a";
-			reg = <0x70e00000 0x10000>;
+			reg = <0x70e00000 0x20000>;
 			dmas = <0x6 0x0>;
 			dma-names = "video";
 			clocks = <0x7>;
